@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGRILENS - Intelligent Crop Defense</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* --- VARIABLES & RESET --- */
+    :root {
+      --bg-deep: #000000;
+      --bg-panel: rgba(3, 12, 8, 0.85);
+      
+      --neon-green: #00cc7a;
+      --dim-green: #003d25;
+      
+      --neon-blue: #00c5d1;
+      --neon-purple: #9b00cc;
+      
+      --text-main: #b8d4c8;
+      --text-mute: #5a6e63;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-deep);
+      font-family: 'Outfit', sans-serif;
+      color: var(--text-main);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* --- PARTICLE SYSTEM --- */
+    .particle-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: var(--neon-green);
+      border-radius: 50%;
+      opacity: 0;
+      animation: float 18s infinite ease-in-out;
+      box-shadow: 0 0 6px rgba(0, 204, 122, 0.3);
+    }
+
+    @keyframes float {
+      0% { transform: translateY(100vh) translateX(0) scale(0); opacity: 0; }
+      15% { opacity: 0.4; }
+      85% { opacity: 0.2; }
+      100% { transform: translateY(-10vh) translateX(40px) scale(1); opacity: 0; }
+    }
+
+    /* --- PARALLAX BACKGROUND --- */
+    .ambient-mesh {
+      position: fixed;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 15% 25%, rgba(0, 204, 122, 0.04) 0%, transparent 35%),
+        radial-gradient(circle at 85% 75%, rgba(0, 197, 209, 0.04) 0%, transparent 35%);
+      z-index: -2;
+      animation: meshPulse 12s ease-in-out infinite;
+    }
+
+    @keyframes meshPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .grid-lines {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(0, 204, 122, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 204, 122, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: -1;
+      perspective: 1000px;
+      transform: rotateX(60deg) scale(1.5);
+      transform-origin: center center;
+      opacity: 0.25;
+      animation: gridMove 25s linear infinite;
+    }
+
+    @keyframes gridMove {
+      0% { background-position: 0 0; }
+      100% { background-position: 60px 60px; }
+    }
+
+    /* --- INTRO SCENE --- */
+    #intro-layer {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, #010805 0%, var(--bg-deep) 100%);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #intro-layer.vanish {
+      opacity: 0;
+      transform: scale(1.1) translateY(-40px);
+      pointer-events: none;
+      filter: blur(15px);
+    }
+
+    .brand-container {
+      position: relative;
+      margin-bottom: 4rem;
+    }
+
+    /* ENHANCED TITLE */
+    .mega-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: clamp(4rem, 12vw, 9rem);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      gap: 0.15rem;
+      position: relative;
+    }
+
+    .char {
+      opacity: 0;
+      transform: translateY(60px) rotateX(75deg);
+      animation: charEnter 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      position: relative;
+      filter: drop-shadow(0 0 20px currentColor);
+      transition: all 0.4s ease;
+    }
+
+    .char.agri { 
+      color: var(--neon-green);
+      text-shadow: 
+        0 0 12px rgba(0, 204, 122, 0.4),
+        0 0 25px rgba(0, 204, 122, 0.2),
+        2px 2px 0px rgba(0, 61, 37, 0.6);
+      animation: charEnter 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+                 glowPulse 3s ease-in-out infinite;
+    }
+
+    .char.lens { 
+      color: var(--text-main);
+      text-shadow: 
+        1.5px 1.5px 0px var(--neon-purple), 
+        -1.5px -1.5px 0px var(--neon-blue),
+        0 0 18px rgba(0, 197, 209, 0.3);
+      animation: charEnter 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+                 chromaShift 4s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { filter: drop-shadow(0 0 12px rgba(0, 204, 122, 0.4)) brightness(1); }
+      50% { filter: drop-shadow(0 0 25px rgba(0, 204, 122, 0.5)) brightness(1.15); }
+    }
+
+    @keyframes chromaShift {
+      0%, 100% { 
+        text-shadow: 
+          1.5px 1.5px 0px var(--neon-purple), 
+          -1.5px -1.5px 0px var(--neon-blue),
+          0 0 18px rgba(0, 197, 209, 0.3);
+      }
+      50% { 
+        text-shadow: 
+          -1.5px -1.5px 0px var(--neon-purple), 
+          1.5px 1.5px 0px var(--neon-blue),
+          0 0 25px rgba(155, 0, 204, 0.3);
+      }
+    }
+
+    .char:nth-child(1) { animation-delay: 0.1s; }
+    .char:nth-child(2) { animation-delay: 0.2s; }
+    .char:nth-child(3) { animation-delay: 0.3s; }
+    .char:nth-child(4) { animation-delay: 0.4s; }
+    .char:nth-child(5) { animation-delay: 0.7s; }
+    .char:nth-child(6) { animation-delay: 0.8s; }
+    .char:nth-child(7) { animation-delay: 0.9s; }
+    .char:nth-child(8) { animation-delay: 1s; }
+
+    @keyframes charEnter {
+      to { opacity: 1; transform: translateY(0) rotateX(0); }
+    }
+
+    .tagline {
+      font-family: 'Outfit', sans-serif;
+      color: var(--neon-blue);
+      letter-spacing: 0.5em;
+      font-size: 0.85rem;
+      font-weight: 300;
+      margin-top: 1.5rem;
+      text-align: center;
+      opacity: 0;
+      text-shadow: 0 0 12px rgba(0, 197, 209, 0.3);
+      animation: fadeInGlow 1.4s 1.5s forwards ease-out;
+    }
+
+    @keyframes fadeInGlow {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* SMOOTH BUTTON */
+    .btn-launch {
+      position: relative;
+      background: linear-gradient(145deg, rgba(0, 204, 122, 0.08), rgba(0, 197, 209, 0.04));
+      padding: 1.5rem 4rem;
+      border: 1.5px solid rgba(0, 204, 122, 0.25);
+      cursor: pointer;
+      overflow: hidden;
+      opacity: 0;
+      animation: fadeInGlow 1.4s 2.2s forwards ease-out;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 
+        0 0 20px rgba(0, 204, 122, 0.12),
+        inset 0 0 15px rgba(0, 204, 122, 0.03);
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    }
+
+    .btn-launch::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 204, 122, 0.2), transparent);
+      transition: left 0.7s ease;
+    }
+
+    .btn-launch:hover {
+      border-color: rgba(0, 204, 122, 0.5);
+      box-shadow: 
+        0 0 40px rgba(0, 204, 122, 0.2),
+        0 8px 30px rgba(0, 204, 122, 0.15),
+        inset 0 0 20px rgba(0, 204, 122, 0.06);
+      transform: translateY(-3px);
+    }
+
+    .btn-launch:hover::before {
+      left: 100%;
+    }
+
+    .btn-text {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      color: var(--text-main);
+      text-shadow: 0 0 8px rgba(0, 204, 122, 0.3);
+      z-index: 2;
+      position: relative;
+    }
+
+    /* --- WORKFLOW APP --- */
+    #main-app {
+      position: relative;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 4rem 2rem 10rem 2rem;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 1.4s 0.8s ease-out, transform 1.4s 0.8s ease-out;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #main-app.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6rem;
+      border-bottom: 1.5px solid rgba(0, 204, 122, 0.15);
+      padding-bottom: 1.5rem;
+      position: relative;
+    }
+
+    .app-header::after {
+      content: '';
+      position: absolute;
+      bottom: -1.5px;
+      left: 0;
+      width: 0;
+      height: 1.5px;
+      background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
+      box-shadow: 0 0 8px rgba(0, 204, 122, 0.4);
+      animation: lineGrow 2.5s 1s forwards ease-out;
+    }
+
+    @keyframes lineGrow {
+      to { width: 100%; }
+    }
+
+    .logo-small { 
+      font-family: 'Rajdhani'; 
+      font-weight: 700; 
+      font-size: 1.8rem; 
+      color: var(--text-main);
+      text-shadow: 0 0 12px rgba(184, 212, 200, 0.2);
+    }
+    .logo-small span { 
+      color: var(--neon-green);
+      text-shadow: 0 0 15px rgba(0, 204, 122, 0.3);
+    }
+
+    .status-indicator {
+      font-size: 0.85rem;
+      color: var(--neon-blue);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-shadow: 0 0 8px rgba(0, 197, 209, 0.2);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--neon-blue);
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0, 197, 209, 0.5);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.6; }
+    }
+
+    /* TIMELINE */
+    .step-wrapper {
+      position: relative;
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 2.5rem;
+      margin-bottom: 0;
+    }
+
+    .line-track {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .circle-node {
+      width: 22px; 
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg-deep);
+      border: 2.5px solid var(--dim-green);
+      z-index: 2;
+      transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 0 0 rgba(0, 204, 122, 0);
+    }
+    
+    .step-wrapper.active .circle-node {
+      border-color: var(--neon-green);
+      background: var(--neon-green);
+      box-shadow: 
+        0 0 18px rgba(0, 204, 122, 0.5),
+        0 0 0 12px rgba(0, 204, 122, 0.08);
+      transform: scale(1.15);
+    }
+
+    .vertical-cable {
+      width: 2.5px;
+      flex-grow: 1;
+      background: linear-gradient(to bottom, var(--dim-green), rgba(0, 61, 37, 0.2));
+      min-height: 120px;
+      position: relative;
+      box-shadow: 0 0 4px rgba(0, 61, 37, 0.3);
+    }
+
+    .cable-fill {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 0%;
+      background: linear-gradient(to bottom, var(--neon-green), var(--neon-blue), var(--neon-purple));
+      transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 10px rgba(0, 204, 122, 0.4);
+    }
+
+    /* SUBTLE CARDS */
+    .card {
+      position: relative;
+      background: linear-gradient(145deg, rgba(3, 18, 12, 0.85), rgba(0, 0, 0, 0.92));
+      border: 1px solid rgba(0, 204, 122, 0.12);
+      border-left: 3px solid var(--dim-green);
+      padding: 2rem;
+      border-radius: 0 14px 14px 0;
+      margin-bottom: 3rem;
+      opacity: 0;
+      transform: translateX(40px) rotateY(-8deg);
+      filter: blur(6px);
+      transition: all 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        transparent 0%,
+        rgba(0, 204, 122, 0.03) 25%,
+        rgba(0, 197, 209, 0.03) 50%,
+        rgba(155, 0, 204, 0.03) 75%,
+        transparent 100%
+      );
+      opacity: 0;
+      transition: opacity 0.7s ease;
+      pointer-events: none;
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .step-wrapper.active .card {
+      opacity: 1;
+      transform: translateX(0) rotateY(0);
+      filter: blur(0);
+      border-color: rgba(0, 204, 122, 0.25);
+      border-left-color: var(--neon-green);
+      box-shadow: 
+        0 12px 40px -12px rgba(0, 0, 0, 0.8),
+        0 0 20px rgba(0, 204, 122, 0.06);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .icon-box {
+      color: var(--text-mute);
+      transition: all 0.7s ease;
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    
+    .step-wrapper.active .icon-box { 
+      color: var(--neon-green);
+      filter: drop-shadow(0 0 8px rgba(0, 204, 122, 0.4));
+      animation: iconFloat 4s ease-in-out infinite;
+    }
+
+    @keyframes iconFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    .card h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-main);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .tech-pill {
+      font-size: 0.7rem;
+      background: linear-gradient(135deg, rgba(0, 197, 209, 0.12), rgba(155, 0, 204, 0.12));
+      color: var(--neon-blue);
+      padding: 5px 12px;
+      border-radius: 5px;
+      border: 1px solid rgba(0, 197, 209, 0.3);
+      margin-left: auto;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      box-shadow: 0 0 10px rgba(0, 197, 209, 0.12);
+      transition: all 0.4s ease;
+    }
+
+    .tech-pill:hover {
+      background: linear-gradient(135deg, rgba(0, 197, 209, 0.2), rgba(155, 0, 204, 0.2));
+      box-shadow: 0 0 18px rgba(0, 197, 209, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .card p {
+      font-size: 1rem;
+      color: var(--text-mute);
+      line-height: 1.7;
+      font-weight: 300;
+    }
+
+    .card p strong {
+      color: var(--neon-green);
+      font-weight: 500;
+    }
+
+    /* MEDIA QUERIES */
+    @media (max-width: 600px) {
+      .mega-title { font-size: 3rem; flex-wrap: wrap; justify-content: center; gap: 0.3rem; }
+      .step-wrapper { grid-template-columns: 40px 1fr; gap: 1.5rem; }
+      .circle-node { width: 18px; height: 18px; }
+      .card { padding: 1.5rem; }
+      .btn-launch { padding: 1.2rem 2.5rem; }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- PARTICLES -->
+  <div class="particle-container" id="particles"></div>
+
+  <div class="ambient-mesh"></div>
+  <div class="grid-lines"></div>
+
+  <!-- INTRO -->
+  <section id="intro-layer">
+    <div class="brand-container">
+      <div class="mega-title">
+        <span class="char agri">A</span>
+        <span class="char agri">G</span>
+        <span class="char agri">R</span>
+        <span class="char agri">I</span>
+        <span class="char lens">L</span>
+        <span class="char lens">E</span>
+        <span class="char lens">N</span>
+        <span class="char lens">S</span>
+      </div>
+      <div class="tagline">SEEING THE UNSEEN IN AGRICULTURE</div>
+    </div>
+
+    <button class="btn-launch" onclick="launchSystem()">
+      <span class="btn-text">INITIALIZE WORKFLOW</span>
+    </button>
+  </section>
+
+  <!-- WORKFLOW APP -->
+  <section id="main-app">
+    <header class="app-header">
+      <div class="logo-small">AGRI<span>LENS</span></div>
+      <div class="status-indicator">
+        <div class="pulse-dot"></div>
+        SYSTEM ONLINE
+      </div>
+    </header>
+
+    <!-- STEP 1 -->
+    <div class="step-wrapper" id="step-1">
+      <div class="line-track">
+        <div class="circle-node"></div>
+        <div class="vertical-cable"><div class="cable-fill"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+          <h3>Scan Leaf</h3>
+          <span class="tech-pill">Image Processing</span>
+        </div>
+        <p>User captures or uploads an image. The system optimizes contrast and prepares the leaf data for analysis.</p>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step-wrapper" id="step-2">
+      <div class="line-track">
+        <div class="circle-node"></div>
+        <div class="vertical-cable"><div class="cable-fill"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20M12 2v20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"/></svg>
+          </div>
+          <h3>Gemini 2.5 Analysis</h3>
+          <span class="tech-pill">Google GenAI</span>
+        </div>
+        <p>The image is streamed to Gemini 2.5 Flash. It identifies the crop type and pinpoints disease markers with 98% accuracy.</p>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step-wrapper" id="step-3">
+      <div class="line-track">
+        <div class="circle-node"></div>
+        <div class="vertical-cable"><div class="cable-fill"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><ellipse cx="12" cy="5" rx="9" ry="3"/></svg>
+          </div>
+          <h3>Local Solutions</h3>
+          <span class="tech-pill">SQLite</span>
+        </div>
+        <p>Retrieves offline-ready treatment plans. Switch instantly between <strong>Organic</strong> and <strong>Chemical</strong> remedies.</p>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step-wrapper" id="step-4">
+      <div class="line-track">
+        <div class="circle-node"></div>
+        <div class="vertical-cable"><div class="cable-fill"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="14" x2="3" y2="14"/><line x1="21" y1="14" x2="23" y2="14"/><line x1="4.22" y1="17.78" x2="5.64" y2="16.36"/><line x1="18.36" y1="9.64" x2="19.78" y2="8.22"/></svg>
+          </div>
+          <h3>Weather Check</h3>
+          <span class="tech-pill">WeatherAPI</span>
+        </div>
+        <p>Validates if today is safe for spraying. "High Wind" or "Rain" alerts prevent pesticide wastage.</p>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step-wrapper" id="step-5">
+      <div class="line-track">
+        <div class="circle-node"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box">
+             <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3>Farmer Assistant</h3>
+          <span class="tech-pill">Web Speech API</span>
+        </div>
+        <p>Ask follow-up questions in your local language. Voice-to-Text enabled for hands-free usage in the field.</p>
+      </div>
+    </div>
+
+  </section>
+
+  <script>
+    // PARTICLE GENERATION
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 25; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 18 + 's';
+        particle.style.animationDuration = (18 + Math.random() * 12) + 's';
+        container.appendChild(particle);
+      }
+    }
+    createParticles();
+
+    function launchSystem() {
+      const intro = document.getElementById('intro-layer');
+      const main = document.getElementById('main-app');
+      
+      intro.classList.add('vanish');
+      
+      setTimeout(() => {
+        main.classList.add('active');
+        runSequence();
+      }, 900);
+    }
+
+    function runSequence() {
+      const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5'];
+      let delay = 0;
+      const stepTime = 1400;
+      const fillTime = 1200;
+
+      steps.forEach((id, index) => {
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          el.classList.add('active');
+          
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          const cable = el.querySelector('.cable-fill');
+          if (cable) {
+            setTimeout(() => {
+              cable.style.height = '100%';
+            }, 800);
+          }
+        }, delay);
+        
+        delay += stepTime + fillTime;
+      });
+    }
+  </script>
+
+</body>
+</html>
