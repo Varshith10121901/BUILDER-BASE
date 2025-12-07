@@ -1,0 +1,1640 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from PIL import Image
+import google.generativeai as genai
+import sqlite3
+import requests
+import io
+import base64
+from datetime import datetime
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for React frontend
+
+class PlantDiseaseAPI:
+    def __init__(self):
+        # Configure Gemini API
+        genai.configure(api_key="AIzaSyAYUlcQAD5SJVtA_UzRFMrEaenDZ6GSrgY")
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
+       
+        # Weather API Configuration
+        self.WEATHER_API_KEY = "fa873d009082422188934434250712"
+        self.WEATHER_BASE_URL = "http://api.weatherapi.com/v1"
+       
+        # Database paths
+        self.plant_db_path = "plant_disease.db"
+        self.plant_table = "plant_data"
+        self.solution_db_path = "solution.db"
+        self.solution_table = "pesticide_solutions"
+       
+        # Weather-based disease prediction rules
+        self.DISEASE_PREDICTION_RULES = {
+            "Rice": {
+                "Blast": {
+                    "conditions": "High humidity (>80%) + Temperature 25-30°C",
+                    "trigger": lambda t, h, r: 25 <= t <= 30 and h > 80 and r > 5,
+                    "prevention": "Apply Tricyclazole fungicide, Avoid excessive nitrogen, Ensure proper drainage"
+                },
+                "Bacterial Leaf Blight": {
+                    "conditions": "Temperature 25-34°C + High humidity (>70%) + Rainfall",
+                    "trigger": lambda t, h, r: 25 <= t <= 34 and h > 70 and r > 10,
+                    "prevention": "Use copper-based bactericides, Remove infected plants"
+                },
+                "Sheath Blight": {
+                    "conditions": "High temperature (>30°C) + High humidity (>85%)",
+                    "trigger": lambda t, h, r: t > 30 and h > 85,
+                    "prevention": "Apply Validamycin, Maintain proper spacing"
+                }
+            },
+            "Wheat": {
+                "Rust": {
+                    "conditions": "Temperature 15-25°C + High humidity (>70%)",
+                    "trigger": lambda t, h, r: 15 <= t <= 25 and h > 70,
+                    "prevention": "Spray Propiconazole, Use resistant varieties"
+                },
+                "Powdery Mildew": {
+                    "conditions": "Cool temperature (15-22°C) + Moderate humidity",
+                    "trigger": lambda t, h, r: 15 <= t <= 22 and 50 <= h <= 70,
+                    "prevention": "Apply Sulfur or Triadimefon"
+                }
+            },
+            "Tomato": {
+                "Late Blight": {
+                    "conditions": "Cool temperature (15-25°C) + High humidity (>90%) + Rain",
+                    "trigger": lambda t, h, r: 15 <= t <= 25 and h > 90 and r > 2,
+                    "prevention": "Apply Metalaxyl + Mancozeb, Remove infected plants"
+                },
+                "Early Blight": {
+                    "conditions": "Temperature 25-30°C + High humidity (>80%)",
+                    "trigger": lambda t, h, r: 25 <= t <= 30 and h > 80 and r > 1,
+                    "prevention": "Spray Chlorothalonil or Mancozeb"
+                }
+            },
+            "Potato": {
+                "Late Blight": {
+                    "conditions": "Temperature 15-25°C + High humidity (>90%) + Rainfall",
+                    "trigger": lambda t, h, r: 15 <= t <= 25 and h > 90 and r > 5,
+                    "prevention": "Apply Metalaxyl + Mancozeb immediately"
+                }
+            },
+            "Cotton": {
+                "Wilt": {
+                    "conditions": "High temperature (>30°C) + Moderate rainfall",
+                    "trigger": lambda t, h, r: t > 30 and r > 5,
+                    "prevention": "Use Carbendazim as soil drench, Practice crop rotation"
+                },
+                "Boll Rot": {
+                    "conditions": "High rainfall + High humidity (>85%)",
+                    "trigger": lambda t, h, r: 25 <= t <= 30 and h > 85 and r > 15,
+                    "prevention": "Improve drainage, Apply Carbendazim + Mancozeb"
+                }
+            },
+            "Sugarcane": {
+                "Red Rot": {
+                    "conditions": "High temperature (>30°C) + High humidity (>80%)",
+                    "trigger": lambda t, h, r: t > 30 and h > 80 and r > 10,
+                    "prevention": "Use disease-free setts, Apply Carbendazim"
+                }
+            },
+            "Maize": {
+                "Blight": {
+                    "conditions": "Temperature 20-28°C + High humidity (>80%)",
+                    "trigger": lambda t, h, r: 20 <= t <= 28 and h > 80 and r > 3,
+                    "prevention": "Apply Mancozeb, Use resistant hybrids"
+                }
+            }
+        }
+   
+    def identify_plant(self, input_data, input_type='image'):
+        """Use Gemini AI to identify the plant name, disease, and confidence from image, text, or audio"""
+        try:
+            plant_info = {}
+            if input_type == 'image':
+                # Decode base64 image
+                image_bytes = base64.b64decode(input_data.split(',')[1] if ',' in input_data else input_data)
+                image = Image.open(io.BytesIO(image_bytes))
+               
+                prompt = """You are an expert Botanist. Analyze this plant image and provide ONLY:
+1. Plant common name (single word if possible, e.g., "Apple", "Tomato", "Rice")
+2. Disease visible (if any)
+3. Confidence (0-100)
+Respond in this EXACT format (3 lines only):
+PLANT: [Plant Name]
+DISEASE: [Disease Name or "Healthy"]
+CONFIDENCE: [Number 0-100]
+Be brief and use simple common names."""
+                response = self.model.generate_content([prompt, image])
+            elif input_type == 'text':
+                prompt = """You are an expert Botanist. Analyze this plant description and provide ONLY:
+1. Plant common name (single word if possible, e.g., "Apple", "Tomato", "Rice")
+2. Disease visible (if any)
+3. Confidence (0-100)
+Respond in this EXACT format (3 lines only):
+PLANT: [Plant Name]
+DISEASE: [Disease Name or "Healthy"]
+CONFIDENCE: [Number 0-100]
+Be brief and use simple common names.
+Description: """
+                response = self.model.generate_content(prompt + input_data)
+            elif input_type == 'audio':
+                # Decode base64 audio
+                audio_bytes = base64.b64decode(input_data.split(',')[1] if ',' in input_data else input_data)
+                audio_file = genai.upload_file(path=io.BytesIO(audio_bytes), mime_type="audio/webm")
+               
+                prompt = """Transcribe and analyze this voice description of a plant. Provide ONLY:
+1. Plant common name (single word if possible, e.g., "Apple", "Tomato", "Rice")
+2. Disease visible (if any)
+3. Confidence (0-100)
+Respond in this EXACT format (3 lines only):
+PLANT: [Plant Name]
+DISEASE: [Disease Name or "Healthy"]
+CONFIDENCE: [Number 0-100]
+Be brief and use simple common names."""
+                response = self.model.generate_content([prompt, audio_file])
+            else:
+                return None
+
+            result = response.text.strip()
+           
+            for line in result.split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    plant_info[key.strip().upper()] = value.strip()
+           
+            return plant_info
+           
+        except Exception as e:
+            print(f"Gemini API error: {e}")
+            return None
+   
+    def search_plant_database(self, plant_name, disease):
+        """Search plant disease database for detailed information"""
+        try:
+            conn = sqlite3.connect(self.plant_db_path)
+            cursor = conn.cursor()
+           
+            cursor.execute(f"PRAGMA table_info({self.plant_table})")
+            columns = [col[1] for col in cursor.fetchall()]
+           
+            cursor.execute(
+                f"SELECT * FROM {self.plant_table} WHERE plant_name LIKE ? LIMIT 1",
+                (f"%{plant_name}%",)
+            )
+            row = cursor.fetchone()
+           
+            if row:
+                match = dict(zip(columns, row))
+                conn.close()
+                return match, True
+           
+            if disease and disease.lower() != "healthy":
+                cursor.execute(
+                    f"SELECT * FROM {self.plant_table} WHERE disease_name LIKE ? LIMIT 1",
+                    (f"%{disease}%",)
+                )
+                row = cursor.fetchone()
+               
+                if row:
+                    match = dict(zip(columns, row))
+                    conn.close()
+                    return match, True
+           
+            conn.close()
+            return None, False
+           
+        except Exception as e:
+            print(f"Plant database query error: {e}")
+            return None, False
+   
+    def search_pesticide_solution(self, plant_name, disease):
+        """Search pesticide solution database for treatment recommendations"""
+        try:
+            conn = sqlite3.connect(self.solution_db_path)
+            cursor = conn.cursor()
+           
+            cursor.execute(f"PRAGMA table_info({self.solution_table})")
+            columns = [col[1] for col in cursor.fetchall()]
+           
+            cursor.execute(
+                f"SELECT * FROM {self.solution_table} WHERE Plant LIKE ? AND Disease LIKE ? LIMIT 1",
+                (f"%{plant_name}%", f"%{disease}%")
+            )
+            row = cursor.fetchone()
+           
+            if row:
+                match = dict(zip(columns, row))
+                conn.close()
+                return match, True
+           
+            cursor.execute(
+                f"SELECT * FROM {self.solution_table} WHERE Plant LIKE ? LIMIT 1",
+                (f"%{plant_name}%",)
+            )
+            row = cursor.fetchone()
+           
+            if row:
+                match = dict(zip(columns, row))
+                conn.close()
+                return match, True
+           
+            if disease and disease.lower() != "healthy":
+                cursor.execute(
+                    f"SELECT * FROM {self.solution_table} WHERE Disease LIKE ? LIMIT 1",
+                    (f"%{disease}%",)
+                )
+                row = cursor.fetchone()
+               
+                if row:
+                    match = dict(zip(columns, row))
+                    conn.close()
+                    return match, True
+           
+            conn.close()
+            return None, False
+           
+        except Exception as e:
+            print(f"Pesticide solution database query error: {e}")
+            return None, False
+   
+    def get_weather_data(self, location):
+        """Fetch weather data from WeatherAPI"""
+        try:
+            endpoint = f"{self.WEATHER_BASE_URL}/forecast.json"
+            params = {
+                "key": self.WEATHER_API_KEY,
+                "q": location,
+                "days": 3,
+                "aqi": "no",
+                "alerts": "yes"
+            }
+            response = requests.get(endpoint, params=params, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Weather API error: {e}")
+            return None
+   
+    def predict_weather_diseases(self, plant_name, temp_c, humidity, rainfall_mm):
+        """Predict diseases based on weather conditions"""
+        if plant_name not in self.DISEASE_PREDICTION_RULES:
+            return []
+       
+        predictions = []
+        crop_diseases = self.DISEASE_PREDICTION_RULES[plant_name]
+       
+        for disease, info in crop_diseases.items():
+            if info["trigger"](temp_c, humidity, rainfall_mm):
+                predictions.append({
+                    "disease": disease,
+                    "risk": "HIGH",
+                    "conditions": info["conditions"],
+                    "prevention": info["prevention"]
+                })
+       
+        return predictions
+   
+    def get_disease_risk_level(self, temp, humidity, rainfall):
+        """Calculate overall disease risk level"""
+        risk_score = 0
+       
+        if humidity > 85:
+            risk_score += 3
+        elif humidity > 70:
+            risk_score += 2
+        elif humidity > 60:
+            risk_score += 1
+       
+        if rainfall > 15:
+            risk_score += 3
+        elif rainfall > 5:
+            risk_score += 2
+        elif rainfall > 1:
+            risk_score += 1
+       
+        if temp > 35 or temp < 10:
+            risk_score += 2
+       
+        if risk_score >= 5:
+            return "CRITICAL", "🔴"
+        elif risk_score >= 3:
+            return "HIGH", "🟠"
+        elif risk_score >= 1:
+            return "MODERATE", "🟡"
+        else:
+            return "LOW", "🟢"
+   
+    def process_chatbot_query(self, query, plant_info):
+        """Process user query using Gemini AI"""
+        try:
+            context = f"""You are a plant disease expert chatbot. The user is asking about:
+Plant: {plant_info.get('plant_name', 'Unknown')}
+Disease: {plant_info.get('disease', 'Unknown')}
+User question: {query}
+Provide a helpful, concise answer (2-3 sentences) about this specific plant and disease."""
+            response = self.model.generate_content(context)
+            answer = response.text.strip()
+            return answer
+           
+        except Exception as e:
+            return f"Sorry, I encountered an error: {str(e)}"
+
+# Initialize API instance
+api = PlantDiseaseAPI()
+
+# ==================== API ENDPOINTS ====================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({"status": "ok", "message": "Plant Disease API is running"})
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze_plant():
+    """
+    Analyze plant input (image, audio, or text)
+    Request body: {
+        "image": "base64_encoded_image",  // or "audio": "base64_encoded_audio", or "text": "description"
+        "treatment_type": "chemical" | "organic"
+    }
+    """
+    try:
+        data = request.json
+        treatment_type = data.get('treatment_type', 'chemical')
+        input_type = None
+        input_data = None
+
+        if 'image' in data:
+            input_type = 'image'
+            input_data = data['image']
+        elif 'audio' in data:
+            input_type = 'audio'
+            input_data = data['audio']
+        elif 'text' in data:
+            input_type = 'text'
+            input_data = data['text']
+        else:
+            return jsonify({"error": "No input data provided (image, audio, or text)"}), 400
+       
+        # Step 1: Identify with Gemini
+        plant_info = api.identify_plant(input_data, input_type)
+        if not plant_info:
+            return jsonify({"error": "Failed to identify plant"}), 500
+       
+        plant_name = plant_info.get('PLANT', 'Unknown')
+        disease = plant_info.get('DISEASE', 'Unknown')
+        confidence = int(plant_info.get('CONFIDENCE', 0))
+       
+        # Step 2: Search plant database
+        plant_match, plant_found = api.search_plant_database(plant_name, disease)
+       
+        # Step 3: Search pesticide solution database
+        pesticide_match, pesticide_found = api.search_pesticide_solution(plant_name, disease)
+       
+        # Format response
+        response = {
+            "plant_name": plant_name,
+            "disease": disease,
+            "confidence": confidence,
+            "treatment_type": treatment_type,
+            "plant_database_match": plant_found,
+            "pesticide_database_match": pesticide_found,
+            "plant_data": plant_match,
+            "pesticide_data": pesticide_match,
+            "analysis_complete": True
+        }
+       
+        return jsonify(response)
+       
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/weather', methods=['POST'])
+def get_weather_advisory():
+    """
+    Get weather-based disease advisory
+    Request body: {
+        "location": "city_name",
+        "plant_name": "plant_name"
+    }
+    """
+    try:
+        data = request.json
+        location = data.get('location', 'Bangalore')
+        plant_name = data.get('plant_name', 'Unknown')
+       
+        # Fetch weather data
+        weather_data = api.get_weather_data(location)
+        if not weather_data:
+            return jsonify({"error": f"Could not fetch weather data for '{location}'"}), 404
+       
+        location_info = weather_data['location']
+        current = weather_data['current']
+        forecast = weather_data['forecast']['forecastday']
+       
+        # Current conditions
+        temp = current['temp_c']
+        humidity = current['humidity']
+        rainfall = current.get('precip_mm', 0)
+       
+        # Current risk assessment
+        risk_level, risk_icon = api.get_disease_risk_level(temp, humidity, rainfall)
+       
+        # Current disease predictions
+        current_predictions = api.predict_weather_diseases(plant_name, temp, humidity, rainfall)
+       
+        # Process 3-day forecast
+        forecast_data = []
+        spray_days = []
+       
+        for idx, day in enumerate(forecast):
+            day_data = day['day']
+            avg_temp = day_data['avgtemp_c']
+            avg_humidity = day_data['avghumidity']
+            total_rain = day_data['totalprecip_mm']
+           
+            day_risk_level, day_risk_icon = api.get_disease_risk_level(avg_temp, avg_humidity, total_rain)
+            day_predictions = api.predict_weather_diseases(plant_name, avg_temp, avg_humidity, total_rain)
+           
+            forecast_item = {
+                "date": day['date'],
+                "day_number": idx + 1,
+                "max_temp": day_data['maxtemp_c'],
+                "min_temp": day_data['mintemp_c'],
+                "avg_temp": avg_temp,
+                "condition": day_data['condition']['text'],
+                "rainfall": total_rain,
+                "rain_chance": day_data['daily_chance_of_rain'],
+                "humidity": avg_humidity,
+                "risk_level": day_risk_level,
+                "risk_icon": day_risk_icon,
+                "predictions": day_predictions,
+                "good_for_spraying": total_rain < 2 and avg_humidity < 80
+            }
+           
+            forecast_data.append(forecast_item)
+           
+            if forecast_item["good_for_spraying"]:
+                spray_days.append(f"{day['date']} (Day {idx+1})")
+       
+        # Farming recommendations
+        recommendations = []
+        if rainfall > 10:
+            recommendations.append({
+                "type": "warning",
+                "title": "HEAVY RAINFALL ALERT",
+                "items": [
+                    "Postpone pesticide/fungicide spraying",
+                    "Ensure proper field drainage",
+                    "Monitor for waterlogging"
+                ]
+            })
+        elif rainfall < 1 and humidity < 50:
+            recommendations.append({
+                "type": "info",
+                "title": "LOW MOISTURE CONDITIONS",
+                "items": [
+                    "Schedule irrigation for crops",
+                    "Check soil moisture regularly"
+                ]
+            })
+       
+        if humidity > 85:
+            recommendations.append({
+                "type": "warning",
+                "title": "HIGH HUMIDITY WARNING",
+                "items": [
+                    "Increase vigilance for fungal diseases",
+                    "Improve air circulation in fields",
+                    "Consider preventive fungicide application"
+                ]
+            })
+       
+        if current['wind_kph'] > 30:
+            recommendations.append({
+                "type": "warning",
+                "title": "STRONG WIND ALERT",
+                "items": [
+                    "Postpone pesticide spraying",
+                    "Provide support to tall crops"
+                ]
+            })
+       
+        response = {
+            "location": {
+                "name": location_info['name'],
+                "region": location_info['region'],
+                "localtime": location_info['localtime']
+            },
+            "current_weather": {
+                "temperature": temp,
+                "feels_like": current['feelslike_c'],
+                "humidity": humidity,
+                "rainfall": rainfall,
+                "condition": current['condition']['text'],
+                "wind_kph": current['wind_kph'],
+                "wind_dir": current['wind_dir'],
+                "uv_index": current['uv'],
+                "risk_level": risk_level,
+                "risk_icon": risk_icon
+            },
+            "current_predictions": current_predictions,
+            "forecast": forecast_data,
+            "spray_days": spray_days,
+            "recommendations": recommendations
+        }
+       
+        return jsonify(response)
+       
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/chatbot', methods=['POST'])
+def chatbot():
+    """
+    Chatbot endpoint for user queries
+    Request body: {
+        "query": "user_question",
+        "plant_info": {
+            "plant_name": "name",
+            "disease": "disease"
+        }
+    }
+    """
+    try:
+        data = request.json
+        query = data.get('query')
+        plant_info = data.get('plant_info', {})
+       
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+       
+        answer = api.process_chatbot_query(query, plant_info)
+       
+        return jsonify({"answer": answer})
+       
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/databases/status', methods=['GET'])
+def check_databases():
+    """Check database status"""
+    try:
+        status = {}
+       
+        # Check plant database
+        try:
+            conn = sqlite3.connect(api.plant_db_path)
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT COUNT(*) FROM {api.plant_table}")
+            plant_count = cursor.fetchone()[0]
+            conn.close()
+            status['plant_database'] = {
+                "status": "connected",
+                "records": plant_count
+            }
+        except Exception as e:
+            status['plant_database'] = {
+                "status": "error",
+                "message": str(e)
+            }
+       
+        # Check solution database
+        try:
+            conn = sqlite3.connect(api.solution_db_path)
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT COUNT(*) FROM {api.solution_table}")
+            solution_count = cursor.fetchone()[0]
+            conn.close()
+            status['solution_database'] = {
+                "status": "connected",
+                "records": solution_count
+            }
+        except Exception as e:
+            status['solution_database'] = {
+                "status": "error",
+                "message": str(e)
+            }
+       
+        return jsonify(status)
+       
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ==================== HTML INTEGRATION INSTRUCTIONS ====================
+"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AgriLens - Smart Agriculture Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @keyframes bounce-slow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .animate-bounce-slow {
+      animation: bounce-slow 2s ease-in-out infinite;
+    }
+    
+    #intro-splash {
+      transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    }
+    
+    #intro-splash.fade-out {
+      opacity: 0;
+      transform: scale(1.1);
+    }
+    
+    #intro-content {
+      animation: fadeInUp 1s ease-out;
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+  <!-- ========= INTRO SPLASH SCREEN ========= -->
+  <div id="intro-splash" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-green-950">
+    <div id="intro-content" class="text-center">
+      <!-- Logo Icon -->
+      <div class="mb-6 inline-block bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-3xl shadow-2xl animate-bounce-slow">
+        <i data-lucide="leaf" class="w-20 h-20 text-white"></i>
+      </div>
+      
+      <!-- Brand Name -->
+      <h1 class="text-6xl font-bold mb-3 bg-gradient-to-r from-green-400 via-emerald-500 to-green-600 bg-clip-text text-transparent">
+        AgriLens
+      </h1>
+      
+      <!-- Tagline -->
+      <p class="text-xl text-green-300 font-light tracking-wide">
+        Smart Agriculture Platform
+      </p>
+      
+      <!-- Loading dots -->
+      <div class="flex justify-center gap-2 mt-8">
+        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= DETECTOR PAGE ========= -->
+  <div id="detector-page" class="hidden min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+    <header class="bg-white shadow-sm border-b border-green-200">
+      <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="bg-green-600 p-2 rounded-lg">
+            <i data-lucide="leaf" class="w-6 h-6 text-white"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-800">AgriLens</h1>
+            <p class="text-sm text-gray-600">Disease Detection</p>
+          </div>
+        </div>
+        <button
+          id="back-home-btn"
+          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+        >
+          Back to Home
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
+      <!-- Container with/without results -->
+      <div id="detector-no-results" class="grid md:grid-cols-2 gap-8">
+        <!-- Upload Section -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">Upload Plant Information</h2>
+          
+          <!-- Input type buttons -->
+          <div class="flex gap-2 mb-6">
+            <button
+              id="input-btn-image"
+              class="flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition bg-green-600 text-white"
+            >
+              <i data-lucide="camera" class="w-4 h-4"></i>
+              Image
+            </button>
+            <button
+              id="input-btn-voice"
+              class="flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition bg-gray-100 text-gray-600 hover:bg-gray-200"
+            >
+              <i data-lucide="mic" class="w-4 h-4"></i>
+              Voice
+            </button>
+            <button
+              id="input-btn-text"
+              class="flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition bg-gray-100 text-gray-600 hover:bg-gray-200"
+            >
+              <i data-lucide="message-square" class="w-4 h-4"></i>
+              Text
+            </button>
+          </div>
+
+          <!-- Image input -->
+          <div id="image-input-wrapper">
+            <input
+              type="file"
+              id="image-input"
+              accept="image/*"
+              class="hidden"
+            />
+            <div id="image-upload-placeholder">
+              <button
+                id="image-upload-btn"
+                class="w-full border-2 border-dashed border-gray-300 rounded-xl p-12 hover:border-green-500 hover:bg-green-50 transition flex flex-col items-center gap-3"
+              >
+                <i data-lucide="upload" class="w-12 h-12 text-gray-400"></i>
+                <span class="text-gray-600 font-medium">Click to upload plant image</span>
+              </button>
+            </div>
+            <div id="image-preview-wrapper" class="relative hidden">
+              <img id="image-preview" src="" alt="Preview" class="w-full rounded-xl" />
+              <button
+                id="image-clear-btn"
+                class="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+              >
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Voice input -->
+          <div id="voice-input-wrapper" class="hidden flex flex-col items-center gap-6 py-8">
+            <div id="voice-circle" class="w-24 h-24 rounded-full flex items-center justify-center bg-green-100">
+              <i id="voice-mic-icon" data-lucide="mic" class="w-12 h-12 text-green-600"></i>
+            </div>
+            <button
+              id="voice-toggle-btn"
+              class="px-8 py-3 rounded-lg font-medium transition bg-green-600 hover:bg-green-700 text-white"
+            >
+              Start Recording
+            </button>
+            <p id="voice-transcript" class="text-gray-600 mt-4 hidden">Transcript: </p>
+          </div>
+
+          <!-- Text input -->
+          <div id="text-input-wrapper" class="hidden">
+            <textarea
+              id="text-input"
+              placeholder="Describe the symptoms..."
+              class="w-full h-40 p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            ></textarea>
+          </div>
+
+          <button
+            id="analyze-btn"
+            class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium transition flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            Analyze Disease
+          </button>
+        </div>
+
+        <!-- How it works -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">How It Works</h3>
+          <ol class="space-y-3 text-gray-600">
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">1</span>
+              <span>Upload image, record voice, or type symptoms</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">2</span>
+              <span>AI analyzes and identifies the disease</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">3</span>
+              <span>Get treatment recommendations and medicine links</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div id="detector-results" class="hidden bg-white rounded-2xl shadow-lg p-8">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <h2 id="result-disease" class="text-2xl font-bold text-gray-800">Disease Name</h2>
+            <p id="result-confidence" class="text-green-600 font-medium mt-1">Confidence: 0%</p>
+          </div>
+          <button id="result-close-btn" class="text-gray-500 hover:text-gray-700">
+            <i data-lucide="x" class="w-6 h-6"></i>
+          </button>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+          <div>
+            <h3 class="font-semibold text-gray-800 mb-3">Description</h3>
+            <p id="result-description" class="text-gray-600"></p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-800 mb-3">Symptoms</h3>
+            <ul id="result-symptoms" class="space-y-2"></ul>
+          </div>
+        </div>
+
+        <div class="bg-green-50 rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">Treatment</h3>
+          <h4 id="result-treatment-name" class="font-medium text-green-700 mb-2"></h4>
+          <p id="result-treatment-application" class="text-gray-600 mb-4"></p>
+          
+          <div id="result-treatment-links" class="flex flex-wrap gap-3"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========= HOME PAGE ========= -->
+  <div id="home-page" class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="bg-green-600 p-2 rounded-lg">
+            <i data-lucide="leaf" class="w-6 h-6 text-white"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-800">AgriLens</h1>
+            <p class="text-sm text-gray-600">Smart Agriculture Platform</p>
+          </div>
+        </div>
+        <button
+          id="go-detector-btn"
+          class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition flex items-center gap-2"
+        >
+          <i data-lucide="camera" class="w-4 h-4"></i>
+          Detect Disease
+        </button>
+      </div>
+    </header>
+
+    <!-- Weather & Rainfall Banner -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4">
+      <div class="max-w-7xl mx-auto px-6 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <i data-lucide="cloud-rain" class="w-6 h-6"></i>
+          <div>
+            <p id="rainfall-prediction" class="font-semibold">Rainfall Prediction - Bengaluru Region</p>
+            <p id="rainfall-details" class="text-sm text-blue-100">Expected: Loading...</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p id="current-temp" class="text-2xl font-bold">Loading...</p>
+          <p id="current-condition" class="text-sm text-blue-100">Loading...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Breaking News Carousel -->
+    <section class="bg-white border-b border-gray-200 py-8">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-6 h-6 text-red-600"></i>
+            Breaking News & Alerts
+          </h2>
+          <div class="flex gap-2">
+            <button id="news-prev-btn" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+              <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <button id="news-next-btn" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+              <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-50 to-orange-50 p-8 min-h-48">
+          <div class="p-8">
+            <div class="flex items-start gap-4">
+              <span id="news-type-badge" class="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
+                TYPE
+              </span>
+              <div class="flex-1">
+                <h3 id="news-title" class="text-2xl font-bold text-gray-800 mb-2">Title</h3>
+                <p id="news-description" class="text-gray-600 mb-3">Description</p>
+                <p id="news-date" class="text-sm text-gray-500">Date</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="news-dots" class="flex justify-center gap-2 mt-4"></div>
+      </div>
+    </section>
+
+    <!-- Innovations Section -->
+    <section class="py-12 bg-gradient-to-br from-green-50 to-emerald-50">
+      <div class="max-w-7xl mx-auto px-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-6 h-6 text-yellow-500"></i>
+          Agriculture Innovations & New Methods
+        </h2>
+        <p class="text-gray-600 mb-8">Latest fertilizers, farming techniques, and breakthrough technologies</p>
+
+        <div id="innovations-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Cards will be injected by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat Button -->
+    <button
+      id="chat-toggle-btn"
+      class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-2xl transition-all hover:scale-110 z-50"
+    >
+      <i data-lucide="bot" class="w-6 h-6"></i>
+    </button>
+
+    <!-- Chat Widget -->
+    <div
+      id="chat-widget"
+      class="hidden fixed bottom-24 right-6 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50"
+    >
+      <div class="bg-green-600 text-white p-4 rounded-t-2xl flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="bot" class="w-5 h-5"></i>
+          <span class="font-semibold">AgriBot Assistant</span>
+        </div>
+        <button id="chat-close-btn" class="hover:bg-green-700 p-1 rounded">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="chat-messages" class="h-96 p-4 overflow-y-auto bg-gray-50">
+        <div class="bg-white rounded-lg p-3 shadow-sm mb-3">
+          <p class="text-sm text-gray-800">👋 Hi! I'm your agriculture assistant. Ask me about:</p>
+          <ul class="text-sm text-gray-600 mt-2 space-y-1">
+            <li>• Disease identification</li>
+            <li>• Fertilizer recommendations</li>
+            <li>• Weather forecasts</li>
+            <li>• Crop management tips</li>
+          </ul>
+        </div>
+      </div>
+      <div class="p-4 border-t border-gray-200">
+        <div class="flex gap-2">
+          <input
+            type="text"
+            id="chat-input"
+            placeholder="Type your question..."
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button id="chat-send-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= SCRIPT ========= -->
+  <script>
+    // Initialize Lucide icons after DOM loaded
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+
+      // Intro splash screen animation
+      const introSplash = document.getElementById('intro-splash');
+      
+      // Fade out and remove splash after 3 seconds
+      setTimeout(() => {
+        introSplash.classList.add('fade-out');
+        
+        // Remove from DOM after fade animation completes
+        setTimeout(() => {
+          introSplash.remove();
+        }, 800);
+      }, 3000);
+    });
+
+    // ---------------- STATE ----------------
+    let currentPage = 'home';
+    let currentSlide = 0;
+    let showChat = false;
+    let activeInput = 'image';
+    let imageFile = null;
+    let isRecording = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioBase64 = null;
+    let voiceTranscript = '';
+    let isAnalyzing = false;
+
+    const breakingNews = [
+      {
+        title: "India's Rice Output May Hit Record High of 124 MT in 2025 Kharif Season",
+        description: "Good monsoon rains and higher planting area to boost production.",
+        date: "Dec 5, 2025",
+        type: "Crop Production",
+        severity: "medium"
+      },
+      {
+        title: "NDA Govt Doubled MSP, Quadrupled Crop Procurement",
+        description: "Shivraj Singh Chouhan announces in Rajya Sabha.",
+        date: "Dec 6, 2025",
+        type: "Policy",
+        severity: "low"
+      },
+      {
+        title: "Kisan of India Samman 2025 Highlights Innovation and Sustainability",
+        description: "Awards for new-age farming practices.",
+        date: "Dec 5, 2025",
+        type: "Awards",
+        severity: "low"
+      },
+      {
+        title: "India-Based Regenerative Agriculture Initiative Enters Operational Phase",
+        description: "New approach for sustainable farming.",
+        date: "Dec 1, 2025",
+        type: "Sustainability",
+        severity: "medium"
+      },
+      {
+        title: "Natural Farming Addresses Challenges in Agricultural Sector: PM Modi",
+        description: "Promoting sustainability and reduced chemical use.",
+        date: "Dec 3, 2025",
+        type: "Policy",
+        severity: "high"
+      }
+    ];
+
+    const innovations = [
+      {
+        title: "Precision Agriculture and Digitalization",
+        description: "Using data analytics and sensors to optimize farming practices.",
+        category: "AgTech",
+        impact: "Efficiency"
+      },
+      {
+        title: "Automation and Robotics",
+        description: "Autonomous tractors and robotic harvesters reducing labor needs.",
+        category: "Robotics",
+        impact: "Labor Saving"
+      },
+      {
+        title: "AI-Powered Precision Agriculture",
+        description: "AI for crop monitoring and yield prediction.",
+        category: "AI",
+        impact: "Yield Improvement"
+      },
+      {
+        title: "Vertical Farming",
+        description: "Hydroponic systems for urban agriculture with controlled environments.",
+        category: "Method",
+        impact: "Space Efficiency"
+      },
+      {
+        title: "Autonomous Electric Crop-Spraying Drones",
+        description: "Drones for precise pesticide application.",
+        category: "Drones",
+        impact: "Sustainability"
+      },
+      {
+        title: "Mycorrhizal Fungi for Soil Health",
+        description: "Enhancing nutrient absorption and soil structure.",
+        category: "Biology",
+        impact: "Soil Health"
+      }
+    ];
+
+    // ------------- PAGE ELEMENTS -------------
+    const homePageEl = document.getElementById('home-page');
+    const detectorPageEl = document.getElementById('detector-page');
+    const goDetectorBtn = document.getElementById('go-detector-btn');
+    const backHomeBtn = document.getElementById('back-home-btn');
+
+    const chatToggleBtn = document.getElementById('chat-toggle-btn');
+    const chatWidget = document.getElementById('chat-widget');
+    const chatCloseBtn = document.getElementById('chat-close-btn');
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    const chatMessages = document.getElementById('chat-messages');
+
+    // Detector elements
+    const inputBtnImage = document.getElementById('input-btn-image');
+    const inputBtnVoice = document.getElementById('input-btn-voice');
+    const inputBtnText = document.getElementById('input-btn-text');
+
+    const imageInputWrapper = document.getElementById('image-input-wrapper');
+    const voiceInputWrapper = document.getElementById('voice-input-wrapper');
+    const textInputWrapper = document.getElementById('text-input-wrapper');
+
+    const imageInput = document.getElementById('image-input');
+    const imageUploadBtn = document.getElementById('image-upload-btn');
+    const imageUploadPlaceholder = document.getElementById('image-upload-placeholder');
+    const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
+    const imagePreview = document.getElementById('image-preview');
+    const imageClearBtn = document.getElementById('image-clear-btn');
+
+    const voiceToggleBtn = document.getElementById('voice-toggle-btn');
+    const voiceCircle = document.getElementById('voice-circle');
+    const voiceMicIcon = document.getElementById('voice-mic-icon');
+    const voiceTranscriptEl = document.getElementById('voice-transcript');
+
+    const textInput = document.getElementById('text-input');
+
+    const analyzeBtn = document.getElementById('analyze-btn');
+
+    const detectorNoResults = document.getElementById('detector-no-results');
+    const detectorResults = document.getElementById('detector-results');
+    const resultCloseBtn = document.getElementById('result-close-btn');
+
+    const resultDisease = document.getElementById('result-disease');
+    const resultConfidence = document.getElementById('result-confidence');
+    const resultDescription = document.getElementById('result-description');
+    const resultSymptoms = document.getElementById('result-symptoms');
+    const resultTreatmentName = document.getElementById('result-treatment-name');
+    const resultTreatmentApplication = document.getElementById('result-treatment-application');
+    const resultTreatmentLinks = document.getElementById('result-treatment-links');
+
+    // Carousel elements
+    const newsTypeBadge = document.getElementById('news-type-badge');
+    const newsTitle = document.getElementById('news-title');
+    const newsDescription = document.getElementById('news-description');
+    const newsDate = document.getElementById('news-date');
+    const newsDots = document.getElementById('news-dots');
+    const newsPrevBtn = document.getElementById('news-prev-btn');
+    const newsNextBtn = document.getElementById('news-next-btn');
+
+    // Weather elements
+    const rainfallPrediction = document.getElementById('rainfall-prediction');
+    const rainfallDetails = document.getElementById('rainfall-details');
+    const currentTemp = document.getElementById('current-temp');
+    const currentCondition = document.getElementById('current-condition');
+
+    // Innovations grid
+    const innovationsGrid = document.getElementById('innovations-grid');
+
+    // ------------- HELPERS -------------
+    function switchPage(page) {
+      currentPage = page;
+      if (page === 'home') {
+        homePageEl.classList.remove('hidden');
+        detectorPageEl.classList.add('hidden');
+      } else {
+        homePageEl.classList.add('hidden');
+        detectorPageEl.classList.remove('hidden');
+      }
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    }
+
+    function updateChatVisibility() {
+      if (showChat) {
+        chatWidget.classList.remove('hidden');
+      } else {
+        chatWidget.classList.add('hidden');
+      }
+    }
+
+    function getSeverityColorClasses(severity) {
+      switch (severity) {
+        case 'critical':
+          return 'bg-red-500';
+        case 'high':
+          return 'bg-orange-500';
+        case 'medium':
+          return 'bg-yellow-500';
+        default:
+          return 'bg-blue-500';
+      }
+    }
+
+    function renderCurrentNews() {
+      const news = breakingNews[currentSlide];
+      newsTitle.textContent = news.title;
+      newsDescription.textContent = news.description;
+      newsDate.textContent = news.date;
+      newsTypeBadge.textContent = news.type.toUpperCase();
+
+      newsTypeBadge.className =
+        'px-3 py-1 text-white text-xs font-bold rounded-full ' +
+        getSeverityColorClasses(news.severity);
+
+      // Dots
+      newsDots.innerHTML = '';
+      breakingNews.forEach((_, idx) => {
+        const btn = document.createElement('button');
+        btn.className =
+          'rounded-full transition ' +
+          (idx === currentSlide ? 'bg-green-600 w-8 h-2' : 'bg-gray-300 w-2 h-2');
+        btn.addEventListener('click', () => {
+          currentSlide = idx;
+          renderCurrentNews();
+        });
+        newsDots.appendChild(btn);
+      });
+    }
+
+    function renderInnovations() {
+      innovationsGrid.innerHTML = '';
+      innovations.forEach((item) => {
+        const card = document.createElement('div');
+        card.className =
+          'bg-white rounded-xl shadow-md hover:shadow-xl transition p-6 border border-green-100';
+        card.innerHTML = `
+          <div class="flex items-start justify-between mb-3">
+            <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+              ${item.category}
+            </span>
+            <span class="text-xs text-gray-500">${item.impact}</span>
+          </div>
+          <h3 class="text-lg font-bold text-gray-800 mb-2">${item.title}</h3>
+          <p class="text-gray-600 text-sm">${item.description}</p>
+        `;
+        innovationsGrid.appendChild(card);
+      });
+    }
+
+    function setActiveInputType(type) {
+      activeInput = type;
+
+      // reset classes
+      inputBtnImage.classList.remove('bg-green-600', 'text-white');
+      inputBtnImage.classList.add('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+      inputBtnVoice.classList.remove('bg-green-600', 'text-white');
+      inputBtnVoice.classList.add('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+      inputBtnText.classList.remove('bg-green-600', 'text-white');
+      inputBtnText.classList.add('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+
+      if (type === 'image') {
+        inputBtnImage.classList.add('bg-green-600', 'text-white');
+        inputBtnImage.classList.remove('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+        imageInputWrapper.classList.remove('hidden');
+        voiceInputWrapper.classList.add('hidden');
+        textInputWrapper.classList.add('hidden');
+      } else if (type === 'voice') {
+        inputBtnVoice.classList.add('bg-green-600', 'text-white');
+        inputBtnVoice.classList.remove('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+        imageInputWrapper.classList.add('hidden');
+        voiceInputWrapper.classList.remove('hidden');
+        textInputWrapper.classList.add('hidden');
+      } else {
+        inputBtnText.classList.add('bg-green-600', 'text-white');
+        inputBtnText.classList.remove('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+        imageInputWrapper.classList.add('hidden');
+        voiceInputWrapper.classList.add('hidden');
+        textInputWrapper.classList.remove('hidden');
+      }
+      if (window.lucide) window.lucide.createIcons();
+      updateAnalyzeButton();
+    }
+
+    function updateAnalyzeButton() {
+      let enabled = false;
+      if (activeInput === 'image' && imageFile) enabled = true;
+      if (activeInput === 'voice' && audioBase64) enabled = true;
+      if (activeInput === 'text' && textInput.value.trim()) enabled = true;
+      analyzeBtn.disabled = !enabled || isAnalyzing;
+    }
+
+    function showResultsPanel(results) {
+      detectorNoResults.classList.add('hidden');
+      detectorResults.classList.remove('hidden');
+
+      resultDisease.textContent = results.disease;
+      resultConfidence.textContent = 'Confidence: ' + results.confidence + '%';
+      resultDescription.textContent = results.description;
+
+      resultSymptoms.innerHTML = '';
+      results.symptoms.forEach((s) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center gap-2 text-gray-600';
+        li.innerHTML =
+          '<span class="w-1.5 h-1.5 bg-green-600 rounded-full"></span>' + s;
+        resultSymptoms.appendChild(li);
+      });
+
+      resultTreatmentName.textContent = results.treatment.name;
+      resultTreatmentApplication.textContent = results.treatment.application;
+
+      resultTreatmentLinks.innerHTML = '';
+      results.treatment.buyLinks.forEach((link) => {
+        const a = document.createElement('a');
+        a.href = link.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className =
+          'flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-green-200 hover:border-green-400 transition';
+        a.innerHTML =
+          '<i data-lucide="external-link" class="w-4 h-4 text-green-600"></i>' +
+          '<span class="text-gray-700 font-medium">' +
+          link.store +
+          '</span>';
+        resultTreatmentLinks.appendChild(a);
+      });
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function hideResultsPanel() {
+      detectorResults.classList.add('hidden');
+      detectorNoResults.classList.remove('hidden');
+    }
+
+    function setAnalyzeLoading(loading) {
+      isAnalyzing = loading;
+      updateAnalyzeButton();
+      if (loading) {
+        analyzeBtn.textContent = 'Analyzing...';
+      } else {
+        analyzeBtn.textContent = 'Analyze Disease';
+      }
+    }
+
+    async function loadWeather() {
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/weather', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ location: 'Bengaluru', plant_name: 'Rice' })
+        });
+        if (!res.ok) throw new Error('Weather fetch failed');
+        const data = await res.json();
+        currentTemp.textContent = `${data.current_weather.temperature}°C`;
+        currentCondition.textContent = data.current_weather.condition;
+        const tomorrowRain = data.forecast[0]?.rainfall || 0;
+        let weekRain = 0;
+        data.forecast.forEach(d => weekRain += d.rainfall || 0);
+        rainfallDetails.textContent = `Expected: ${tomorrowRain}mm tomorrow | ${weekRain}mm this week`;
+      } catch (err) {
+        console.error(err);
+        currentTemp.textContent = 'N/A';
+        currentCondition.textContent = 'Unable to load';
+        rainfallDetails.textContent = 'Unable to load';
+      }
+    }
+
+    // ---------------- EVENT LISTENERS ----------------
+
+    // Navigation
+    goDetectorBtn.addEventListener('click', () => {
+      switchPage('detector');
+    });
+
+    backHomeBtn.addEventListener('click', () => {
+      hideResultsPanel();
+      switchPage('home');
+    });
+
+    // Chat
+    chatToggleBtn.addEventListener('click', () => {
+      showChat = !showChat;
+      updateChatVisibility();
+    });
+
+    chatCloseBtn.addEventListener('click', () => {
+      showChat = false;
+      updateChatVisibility();
+    });
+
+    chatSendBtn.addEventListener('click', async () => {
+      const query = chatInput.value.trim();
+      if (!query) return;
+
+      const userMsg = document.createElement('div');
+      userMsg.className = 'bg-green-100 rounded-lg p-3 shadow-sm mb-3 text-right';
+      userMsg.innerHTML = `<p class="text-sm text-gray-800">${query}</p>`;
+      chatMessages.appendChild(userMsg);
+      chatInput.value = '';
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/chatbot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, plant_info: {} })
+        });
+        if (!res.ok) throw new Error('Chatbot error');
+        const data = await res.json();
+
+        const botMsg = document.createElement('div');
+        botMsg.className = 'bg-white rounded-lg p-3 shadow-sm mb-3';
+        botMsg.innerHTML = `<p class="text-sm text-gray-800">${data.answer}</p>`;
+        chatMessages.appendChild(botMsg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } catch (err) {
+        console.error(err);
+        const botMsg = document.createElement('div');
+        botMsg.className = 'bg-white rounded-lg p-3 shadow-sm mb-3';
+        botMsg.innerHTML = `<p class="text-sm text-gray-800">Sorry, something went wrong.</p>`;
+        chatMessages.appendChild(botMsg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    });
+
+    // Input type buttons
+    inputBtnImage.addEventListener('click', () => setActiveInputType('image'));
+    inputBtnVoice.addEventListener('click', () => setActiveInputType('voice'));
+    inputBtnText.addEventListener('click', () => setActiveInputType('text'));
+
+    // Image upload
+    imageUploadBtn.addEventListener('click', () => {
+      imageInput.click();
+    });
+
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      imageFile = file;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        imagePreview.src = reader.result;
+        imageUploadPlaceholder.classList.add('hidden');
+        imagePreviewWrapper.classList.remove('hidden');
+        updateAnalyzeButton();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    imageClearBtn.addEventListener('click', () => {
+      imageFile = null;
+      imageInput.value = '';
+      imageUploadPlaceholder.classList.remove('hidden');
+      imagePreviewWrapper.classList.add('hidden');
+      updateAnalyzeButton();
+    });
+
+    // Voice recording
+    voiceToggleBtn.addEventListener('click', async () => {
+      if (!isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          audioChunks = [];
+          mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              audioBase64 = reader.result;
+              voiceTranscriptEl.textContent = 'Transcript: Audio recorded (ready for analysis)';
+              voiceTranscriptEl.classList.remove('hidden');
+              updateAnalyzeButton();
+            };
+            reader.readAsDataURL(blob);
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          voiceCircle.classList.remove('bg-green-100');
+          voiceCircle.classList.add('bg-red-100', 'animate-pulse');
+          voiceMicIcon.classList.remove('text-green-600');
+          voiceMicIcon.classList.add('text-red-600');
+          voiceToggleBtn.textContent = 'Stop Recording';
+          if (window.lucide) window.lucide.createIcons();
+        } catch (err) {
+          alert('Microphone access denied');
+        }
+      } else {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+        isRecording = false;
+        voiceCircle.classList.remove('bg-red-100', 'animate-pulse');
+        voiceCircle.classList.add('bg-green-100');
+        voiceMicIcon.classList.remove('text-red-600');
+        voiceMicIcon.classList.add('text-green-600');
+        voiceToggleBtn.textContent = 'Start Recording';
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
+
+    textInput.addEventListener('input', updateAnalyzeButton);
+
+    // Analyze
+    analyzeBtn.addEventListener('click', async () => {
+      if (isAnalyzing) return;
+      setAnalyzeLoading(true);
+
+      try {
+        let payload = { treatment_type: 'chemical' };
+        if (activeInput === 'image') {
+          if (!imageFile) throw new Error('No image');
+          const reader = new FileReader();
+          const base64Promise = new Promise((resolve) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(imageFile);
+          });
+          payload.image = await base64Promise;
+        } else if (activeInput === 'voice') {
+          if (!audioBase64) throw new Error('No audio');
+          payload.audio = audioBase64;
+        } else if (activeInput === 'text') {
+          const text = textInput.value.trim();
+          if (!text) throw new Error('No text');
+          payload.text = text;
+        }
+
+        const res = await fetch('http://127.0.0.1:5000/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Analysis failed: ' + res.status);
+
+        const data = await res.json();
+
+        const symptoms = data.plant_data?.symptoms ? data.plant_data.symptoms.split(',').map(s => s.trim()) : ['No symptoms data available'];
+        const description = data.plant_data?.description || 'No description available';
+        const treatmentName = data.pesticide_data?.Pesticide || 'No treatment recommended';
+        const treatmentApplication = `${data.pesticide_data?.Dosage || ''} - ${data.pesticide_data?.Application_Method || 'Follow general guidelines'}`;
+        const buyLinks = [
+          { store: 'Amazon', url: `https://www.amazon.com/search?q=${encodeURIComponent(treatmentName)}` },
+          { store: 'Local Agro Store', url: `https://example.com/search?q=${encodeURIComponent(treatmentName)}` }
+        ];
+
+        const results = {
+          disease: data.disease || 'Unknown',
+          confidence: data.confidence || 85,
+          description,
+          symptoms,
+          treatment: {
+            name: treatmentName,
+            application: treatmentApplication,
+            buyLinks
+          }
+        };
+
+        showResultsPanel(results);
+      } catch (err) {
+        console.error(err);
+        alert('Analysis failed: ' + err.message + '. Is backend running?');
+      } finally {
+        setAnalyzeLoading(false);
+      }
+    });
+
+    resultCloseBtn.addEventListener('click', () => {
+      hideResultsPanel();
+    });
+
+    // Carousel navigation
+    newsPrevBtn.addEventListener('click', () => {
+      currentSlide = (currentSlide - 1 + breakingNews.length) % breakingNews.length;
+      renderCurrentNews();
+    });
+
+    newsNextBtn.addEventListener('click', () => {
+      currentSlide = (currentSlide + 1) % breakingNews.length;
+      renderCurrentNews();
+    });
+
+    // Auto slide every 5s
+    setInterval(() => {
+      currentSlide = (currentSlide + 1) % breakingNews.length;
+      renderCurrentNews();
+    }, 5000);
+
+    // ------------- INIT -------------
+    renderCurrentNews();
+    renderInnovations();
+    setActiveInputType('image');
+    loadWeather();
+  </script>
+</body>
+</html>
+"""
+# ==================== END OF HTML INTEGRATION INSTRUCTIONS ====================
+
+
+if __name__ == '__main__':
+    print("=" * 60)
+    print("Plant Disease Detection API Server")
+    print("=" * 60)
+    print("Server running at: http://localhost:5000")
+    print("API Endpoints:")
+    print("  - GET  /api/health")
+    print("  - POST /api/analyze")
+    print("  - POST /api/weather")
+    print("  - POST /api/chatbot")
+    print("  - GET  /api/databases/status")
+    print("=" * 60)
+    print("\nREAD THE HTML INTEGRATION INSTRUCTIONS ABOVE")
+    print("Save your HTML in a 'templates' folder and uncomment the route")
+    print("=" * 60)
+    app.run(debug=True, host='0.0.0.0', port=5000)
