@@ -17,7 +17,7 @@ class PlantDeficiencyAnalyzer:
         self.root.configure(bg="#000000")
         
         # Configure Gemini API
-        genai.configure(api_key="AIzaSyAYUlcQAD5SJVtA_UzRFMrEaenDZ6GSrgY")
+        genai.configure(api_key="")
         self.model = genai.GenerativeModel('gemini-2.5-flash')
         
         # Weather API Configuration
