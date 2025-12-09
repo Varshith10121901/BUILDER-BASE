@@ -12,7 +12,7 @@ CORS(app) # Enable CORS for React frontend
 class PlantDiseaseAPI:
     def __init__(self):
         # Configure Gemini API
-        genai.configure(api_key="AIzaSyAYUlcQAD5SJVtA_UzRFMrEaenDZ6GSrgY")
+        genai.configure(api_key="")
         self.model = genai.GenerativeModel('gemini-2.5-flash')
        
         # Weather API Configuration
@@ -611,4 +611,5 @@ def check_databases():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 if __name__ == '__main__':
+
     app.run(debug=True, host='0.0.0.0', port=5000)
