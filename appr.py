@@ -26,7 +26,7 @@ HTML_TEMPLATE = """
 class PlantDiseaseAPI:
     def __init__(self):
         # Configure Gemini API
-        genai.configure(api_key="AIzaSyAYUlcQAD5SJVtA_UzRFMrEaenDZ6GSrgY")
+        genai.configure(api_key="")
         self.model = genai.GenerativeModel('gemini-2.5-flash')
        
         # Weather API Configuration
@@ -1656,4 +1656,5 @@ if __name__ == '__main__':
     print("   - http://localhost:5000/api/weather")
     print("   - http://localhost:5000/api/chatbot")
     print("=" * 60)
+
     app.run(debug=True, host='0.0.0.0', port=5000)
