@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AgriLens - AI Intelligence for Smarter Farming">
+    <title>AgriLens - AI Intelligence for Smarter Farming</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-orange: #D85E3D;
+            --light-bg: #F5F5F5;
+            --white: #FFFFFF;
+            --dark-text: #2C2C2C;
+            --gray-text: #666666;
+            --sidebar-width: 80px;
+            --border-color: #E0E0E0;
+            --shadow-sm: 0 2px 15px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 6px 25px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--light-bg);
+            color: var(--dark-text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ==================== CINEMATIC INTRO ==================== */
+        #cinematic-intro {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: introFadeOut 1s ease-out 4s forwards;
+        }
+
+        @keyframes introFadeOut {
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        .intro-content {
+            text-align: center;
+            position: relative;
+        }
+
+        .intro-text {
+            font-size: 6rem;
+            font-weight: 900;
+            color: transparent;
+            background: linear-gradient(45deg, #D85E3D, #ff8c6b, #D85E3D);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            letter-spacing: 0.1em;
+            animation: textGlow 3s ease-in-out, gradientShift 3s ease-in-out infinite;
+            text-transform: uppercase;
+            position: relative;
+        }
+
+        @keyframes textGlow {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+                filter: blur(10px);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+                filter: blur(0px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0px);
+            }
+        }
+
+        @keyframes gradientShift {
+            0%, 100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .intro-subtitle {
+            font-size: 1.5rem;
+            color: #ffffff;
+            margin-top: 20px;
+            opacity: 0;
+            animation: subtitleFade 2s ease-in 1.5s forwards;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+        }
+
+        @keyframes subtitleFade {
+            to {
+                opacity: 0.8;
+            }
+        }
+
+        .intro-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: var(--primary-orange);
+            border-radius: 50%;
+            animation: particleFloat 4s infinite ease-in-out;
+        }
+
+        @keyframes particleFloat {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+                opacity: 0.6;
+            }
+            50% {
+                transform: translateY(-30px) scale(1.2);
+                opacity: 1;
+            }
+        }
+
+        /* ==================== AUTH PAGES ==================== */
+        .auth-container {
+            display: none;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #F5F5F5 0%, #FFFFFF 50%, #FFF8F5 100%);
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-container.active {
+            display: flex;
+        }
+
+        .auth-container::before {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(216, 94, 61, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -300px;
+            right: -300px;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(5deg); }
+        }
+
+        .auth-box {
+            background: white;
+            border-radius: 24px;
+            padding: 50px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            z-index: 1;
+            animation: slideUpFade 0.6s ease-out;
+        }
+
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .auth-logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .auth-logo h1 {
+            font-size: 3rem;
+            color: var(--primary-orange);
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .auth-logo p {
+            color: var(--gray-text);
+            font-size: 0.95rem;
+        }
+
+        .auth-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--dark-text);
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-text);
+            font-size: 0.95rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: var(--transition);
+            font-family: inherit;
+            background: var(--light-bg);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-orange);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(216, 94, 61, 0.1);
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .form-checkbox input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .form-checkbox label {
+            color: var(--gray-text);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .auth-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary-orange) 0%, #c74d2e 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(216, 94, 61, 0.3);
+        }
+
+        .auth-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(216, 94, 61, 0.4);
+        }
+
+        .auth-button:active {
+            transform: translateY(0);
+        }
+
+        .auth-divider {
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .auth-divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 100%;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .auth-divider span {
+            background: white;
+            padding: 0 15px;
+            color: var(--gray-text);
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-link {
+            text-align: center;
+            margin-top: 25px;
+            color: var(--gray-text);
+            font-size: 0.95rem;
+        }
+
+        .auth-link a {
+            color: var(--primary-orange);
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .auth-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* ==================== SIDEBAR ==================== */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--white);
+            border-right: 1px solid var(--border-color);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            z-index: 1000;
+            transition: var(--transition);
+        }
+
+        .sidebar.active {
+            display: flex;
+        }
+
+        .menu-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-bottom: 30px;
+            transition: var(--transition);
+        }
+
+        .menu-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .menu-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--dark-text);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            width: 100%;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .nav-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            border-radius: 10px;
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--gray-text);
+            transition: var(--transition);
+        }
+
+        .nav-item:hover {
+            background: rgba(216, 94, 61, 0.05);
+        }
+
+        .nav-item:hover svg {
+            fill: var(--primary-orange);
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--primary-orange);
+            border-radius: 0 3px 3px 0;
+        }
+
+        .nav-item.active svg {
+            fill: var(--primary-orange);
+        }
+
+        .scroll-top {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-orange);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-top: auto;
+            transition: var(--transition);
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(216, 94, 61, 0.4);
+        }
+
+        .scroll-top svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* ==================== MAIN CONTENT ==================== */
+        .main-content {
+            margin-left: 0;
+            min-height: 100vh;
+            transition: var(--transition);
+        }
+
+        .main-content.with-sidebar {
+            margin-left: var(--sidebar-width);
+        }
+
+        /* ==================== LANDING SECTION ==================== */
+        #landing {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #F5F5F5 0%, #FFFFFF 50%, #FFF8F5 100%);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #landing::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(216, 94, 61, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -250px;
+            right: -250px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .logo-section {
+            margin-bottom: 50px;
+            z-index: 1;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo-text {
+            font-size: 4.5rem;
+            font-weight: 800;
+            color: var(--primary-orange);
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .subtitle {
+            font-size: 1.8rem;
+            color: var(--dark-text);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .tagline {
+            font-size: 1.1rem;
+            color: var(--gray-text);
+            max-width: 600px;
+            line-height: 1.8;
+            margin: 0 auto 50px;
+        }
+
+        .cta-button {
+            padding: 18px 50px;
+            font-size: 1.1rem;
+            background: var(--primary-orange);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(216, 94, 61, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .cta-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(216, 94, 61, 0.4);
+        }
+
+        .cta-button:active {
+            transform: translateY(-1px);
+        }
+
+        /* ==================== USER SELECTION ==================== */
+        #user-selection {
+            display: none;
+            min-height: 100vh;
+            padding: 80px 40px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            color: var(--dark-text);
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .section-description {
+            font-size: 1.1rem;
+            color: var(--gray-text);
+        }
+
+        .cards-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .plan-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            border: 2px solid transparent;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .plan-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .plan-card.free:hover {
+            border-color: #4CAF50;
+        }
+
+        .plan-card.premium:hover {
+            border-color: var(--primary-orange);
+        }
+
+        .plan-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .plan-card.free .plan-badge {
+            background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+            color: #2E7D32;
+        }
+
+        .plan-card.premium .plan-badge {
+            background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+            color: #E65100;
+        }
+
+        .plan-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--dark-text);
+        }
+
+        .features-list {
+            list-style: none;
+            margin-bottom: 35px;
+        }
+
+        .features-list li {
+            padding: 15px 0;
+            border-bottom: 1px solid #F0F0F0;
+            display: flex;
+            align-items: center;
+            font-size: 1rem;
+            color: var(--dark-text);
+            transition: var(--transition);
+        }
+
+        .features-list li:hover {
+            padding-left: 5px;
+            background: rgba(216, 94, 61, 0.02);
+        }
+
+        .features-list li:last-child {
+            border-bottom: none;
+        }
+
+        .features-list li svg {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .plan-card.free .features-list li svg {
+            fill: #4CAF50;
+        }
+
+        .plan-card.premium .features-list li svg {
+            fill: var(--primary-orange);
+        }
+
+        .select-button {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.05rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .plan-card.free .select-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .plan-card.premium .select-button {
+            background: linear-gradient(135deg, var(--primary-orange) 0%, #c74d2e 100%);
+            color: white;
+        }
+
+        .select-button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .select-button:active {
+            transform: scale(0.98);
+        }
+
+        /* ==================== DASHBOARD ==================== */
+        .dashboard {
+            display: none;
+            min-height: 100vh;
+            padding: 40px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .back-button {
+            background: white;
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: var(--dark-text);
+            margin-bottom: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .back-button:hover {
+            background: var(--light-bg);
+            border-color: var(--primary-orange);
+            color: var(--primary-orange);
+        }
+
+        .back-button svg {
+            transition: var(--transition);
+        }
+
+        .back-button:hover svg {
+            transform: translateX(-3px);
+        }
+
+        .dashboard-header {
+            margin-bottom: 50px;
+        }
+
+        .dashboard-title {
+            font-size: 2.2rem;
+            color: var(--dark-text);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .dashboard-subtitle {
+            font-size: 1rem;
+            color: var(--gray-text);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 30px;
+            max-width: 1400px;
+        }
+
+        .feature-box {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-orange), #ff8c6b);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-box:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-box:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .feature-box.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .feature-box.locked::after {
+            content: '🔒';
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            font-size: 24px;
+        }
+
+        .feature-box.locked:hover {
+            transform: translateY(0);
+        }
+
+        .feature-icon-box {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            transition: var(--transition);
+        }
+
+        .feature-box:hover .feature-icon-box {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .feature-icon-box svg {
+            width: 30px;
+            height: 30px;
+            fill: var(--primary-orange);
+        }
+
+        .feature-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--dark-text);
+        }
+
+        .feature-description {
+            color: var(--gray-text);
+            line-height: 1.7;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        .lock-text {
+            color: var(--primary-orange);
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .demo-area {
+            background: var(--light-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+
+        /* ==================== UPLOAD ZONE ==================== */
+        .upload-zone {
+            border: 2px dashed #BDBDBD;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary-orange);
+            background: rgba(216, 94, 61, 0.05);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 15px;
+            transition: var(--transition);
+        }
+
+        .upload-zone:hover .upload-icon {
+            transform: scale(1.1);
+        }
+
+        .upload-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: var(--gray-text);
+        }
+
+        /* ==================== CHAT CONTAINER ==================== */
+        .chat-container {
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding-right: 5px;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--primary-orange);
+            border-radius: 10px;
+        }
+
+        .chat-bubble {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .chat-bubble strong {
+            color: var(--primary-orange);
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            border-color: var(--primary-orange);
+            box-shadow: 0 0 0 3px rgba(216, 94, 61, 0.1);
+        }
+
+        /* ==================== WEATHER GRID ==================== */
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            text-align: center;
+        }
+
+        .weather-metric {
+            padding: 15px;
+            border-radius: 10px;
+            transition: var(--transition);
+        }
+
+        .weather-metric:hover {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .weather-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-orange);
+            margin-bottom: 5px;
+        }
+
+        .weather-label {
+            font-size: 0.9rem;
+            color: var(--gray-text);
+        }
+
+        /* ==================== LANGUAGE GRID ==================== */
+        .language-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .lang-button {
+            padding: 10px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: var(--transition);
+            color: var(--dark-text);
+            font-weight: 500;
+        }
+
+        .lang-button:hover {
+            border-color: var(--primary-orange);
+            color: var(--primary-orange);
+            background: rgba(216, 94, 61, 0.05);
+        }
+
+        .lang-button.active {
+            background: var(--primary-orange);
+            color: white;
+            border-color: var(--primary-orange);
+        }
+
+        /* ==================== INFO ITEMS ==================== */
+        .info-list {
+            list-style: none;
+        }
+
+        .info-item {
+            padding: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .info-item:hover {
+            padding-left: 5px;
+        }
+
+        .info-item svg {
+            width: 18px;
+            height: 18px;
+            fill: #4CAF50;
+        }
+
+        /* ==================== STATISTICS SECTION ==================== */
+        #statistics {
+            display: none;
+            min-height: 100vh;
+            padding: 40px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary-orange);
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: var(--gray-text);
+            font-size: 0.95rem;
+        }
+
+        /* ==================== MESSAGES SECTION ==================== */
+        #messages {
+            display: none;
+            min-height: 100vh;
+            padding: 40px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .message-card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .message-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .message-sender {
+            font-weight: 700;
+            color: var(--dark-text);
+        }
+
+        .message-time {
+            color: var(--gray-text);
+            font-size: 0.85rem;
+        }
+
+        /* ==================== PROFILE SECTION ==================== */
+        #profile {
+            display: none;
+            min-height: 100vh;
+            padding: 40px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .profile-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-sm);
+            max-width: 600px;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-orange), #ff8c6b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            margin: 0 auto 30px;
+            font-weight: 700;
+        }
+
+        .profile-info {
+            margin-top: 20px;
+        }
+
+        .profile-field {
+            margin-bottom: 20px;
+        }
+
+        .profile-field label {
+            display: block;
+            font-weight: 600;
+            color: var(--gray-text);
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .profile-field .value {
+            font-size: 1.1rem;
+            color: var(--dark-text);
+        }
+
+        /* ==================== RESPONSIVE DESIGN ==================== */
+        @media (max-width: 768px) {
+            .intro-text {
+                font-size: 3.5rem;
+            }
+
+            .intro-subtitle {
+                font-size: 1rem;
+            }
+
+            .auth-box {
+                padding: 35px 25px;
+            }
+
+            .sidebar {
+                width: 60px;
+            }
+
+            .main-content.with-sidebar {
+                margin-left: 60px;
+            }
+
+            .logo-text {
+                font-size: 3rem;
+            }
+
+            .subtitle {
+                font-size: 1.4rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .weather-grid, .language-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .intro-text {
+                font-size: 2.5rem;
+            }
+
+            .auth-box {
+                padding: 30px 20px;
+            }
+
+            .sidebar {
+                width: 50px;
+            }
+
+            .main-content.with-sidebar {
+                margin-left: 50px;
+            }
+        }
+
+        /* ==================== UTILITY CLASSES ==================== */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Cinematic Intro -->
+    <div id="cinematic-intro">
+        <div class="intro-particles"></div>
+        <div class="intro-content">
+            <div class="intro-text">AGRILENS</div>
+            <div class="intro-subtitle">AI Intelligence</div>
+        </div>
+    </div>
+
+    <!-- Sign In Page -->
+    <div id="signin-page" class="auth-container">
+        <div class="auth-box">
+            <div class="auth-logo">
+                <h1>AgriLens</h1>
+                <p>AI Intelligence for Smarter Farming</p>
+            </div>
+            <h2 class="auth-title">Welcome Back</h2>
+            <form onsubmit="handleSignIn(event)">
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" placeholder="Enter your password" required>
+                </div>
+                <div class="form-checkbox">
+                    <input type="checkbox" id="remember">
+                    <label for="remember">Remember me</label>
+                </div>
+                <button type="submit" class="auth-button">Sign In</button>
+            </form>
+            <div class="auth-divider">
+                <span>OR</span>
+            </div>
+            <div class="auth-link">
+                Don't have an account? <a href="#" onclick="showSignUp()">Sign Up</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign Up Page -->
+    <div id="signup-page" class="auth-container">
+        <div class="auth-box">
+            <div class="auth-logo">
+                <h1>AgriLens</h1>
+                <p>AI Intelligence for Smarter Farming</p>
+            </div>
+            <h2 class="auth-title">Create Account</h2>
+            <form onsubmit="handleSignUp(event)">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" placeholder="Enter your name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" placeholder="Create a password" required>
+                </div>
+                <div class="form-checkbox">
+                    <input type="checkbox" id="terms" required>
+                    <label for="terms">I agree to Terms & Conditions</label>
+                </div>
+                <button type="submit" class="auth-button">Sign Up</button>
+            </form>
+            <div class="auth-divider">
+                <span>OR</span>
+            </div>
+            <div class="auth-link">
+                Already have an account? <a href="#" onclick="showSignIn()">Sign In</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="menu-icon" onclick="toggleMenu()" aria-label="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Main Navigation">
+            <div class="nav-item active" onclick="navigateTo('landing')" title="Home">
+                <svg viewBox="0 0 24 24">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+            </div>
+            <div class="nav-item" onclick="navigateTo('statistics')" title="Statistics">
+                <svg viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                </svg>
+            </div>
+            <div class="nav-item" onclick="navigateTo('messages')" title="Messages">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+                </svg>
+            </div>
+            <div class="nav-item" onclick="navigateTo('profile')" title="Profile">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+            </div>
+        </nav>
+
+        <div class="scroll-top" onclick="scrollToTop()" title="Scroll to Top">
+            <svg viewBox="0 0 24 24">
+                <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+            </svg>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Landing Section -->
+        <section id="landing">
+            <div class="logo-section">
+                <h1 class="logo-text">AgriLens</h1>
+                <h2 class="subtitle">AI Intelligence for Smarter Farming</h2>
+                <p class="tagline">Detect diseases early. Grow profitable crops. Secure your future with cutting-edge agricultural technology.</p>
+            </div>
+            <button class="cta-button" onclick="showUserSelection()">
+                <span style="position: relative; z-index: 1;">Start Your Journey</span>
+            </button>
+        </section>
+
+        <!-- User Selection Section -->
+        <section id="user-selection">
+            <div class="section-header">
+                <h2 class="section-title">Choose Your Access Level</h2>
+                <p class="section-description">Select the plan that perfectly fits your farming needs and goals</p>
+            </div>
+
+            <div class="cards-wrapper">
+                <!-- Free Plan Card -->
+                <div class="plan-card free">
+                    <span class="plan-badge">Free Access</span>
+                    <h3 class="plan-title">Non-Premium</h3>
+                    <ul class="features-list">
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            AI Disease Analysis Bot
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            24/7 Chatbot Advisory
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            Real-time Weather Advisory
+                        </li>
+                    </ul>
+                    <button class="select-button" onclick="showDashboard('free')">Continue as Free User</button>
+                </div>
+
+                <!-- Premium Plan Card -->
+                <div class="plan-card premium">
+                    <span class="plan-badge">Premium Access</span>
+                    <h3 class="plan-title">Premium Subscription</h3>
+                    <ul class="features-list">
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            All Free Features Included
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            AI Caller (Regional Languages)
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            Smart Insurance Recommendations
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            Instant Document Verification
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            AI-Powered Crop Recommendations
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            Market & Profit Advisory
+                        </li>
+                    </ul>
+                    <button class="select-button" onclick="showDashboard('premium')">Unlock Premium Features</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Statistics Section -->
+        <section id="statistics">
+            <button class="back-button" onclick="navigateTo('landing')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                </svg>
+                Back to Home
+            </button>
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">Statistics & Analytics</h2>
+                <p class="dashboard-subtitle">Track your farming progress and insights</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">1,247</div>
+                    <div class="stat-label">Crops Analyzed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">98.5%</div>
+                    <div class="stat-label">Disease Detection Accuracy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">5,340</div>
+                    <div class="stat-label">Farmers Helped</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">₹2.4M</div>
+                    <div class="stat-label">Savings Generated</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Messages Section -->
+        <section id="messages">
+            <button class="back-button" onclick="navigateTo('landing')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                </svg>
+                Back to Home
+            </button>
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">Messages & Notifications</h2>
+                <p class="dashboard-subtitle">Stay updated with your farming alerts</p>
+            </div>
+            <div class="message-card">
+                <div class="message-header">
+                    <span class="message-sender">AgriLens AI System</span>
+                    <span class="message-time">2 hours ago</span>
+                </div>
+                <p>Your wheat crop analysis is complete. Disease detected: Leaf Rust. Treatment recommendations sent.</p>
+            </div>
+            <div class="message-card">
+                <div class="message-header">
+                    <span class="message-sender">Weather Advisory</span>
+                    <span class="message-time">5 hours ago</span>
+                </div>
+                <p>Heavy rainfall expected in your region tomorrow. Consider delaying irrigation schedules.</p>
+            </div>
+            <div class="message-card">
+                <div class="message-header">
+                    <span class="message-sender">Market Updates</span>
+                    <span class="message-time">1 day ago</span>
+                </div>
+                <p>Cotton prices increased by 8%. Consider timing your harvest for maximum profit.</p>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile">
+            <button class="back-button" onclick="navigateTo('landing')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                </svg>
+                Back to Home
+            </button>
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">User Profile</h2>
+                <p class="dashboard-subtitle">Manage your account information</p>
+            </div>
+            <div class="profile-card">
+                <div class="profile-avatar">F</div>
+                <div class="profile-info">
+                    <div class="profile-field">
+                        <label>Full Name</label>
+                        <div class="value">Farmer User</div>
+                    </div>
+                    <div class="profile-field">
+                        <label>Email</label>
+                        <div class="value">farmer@agrilens.com</div>
+                    </div>
+                    <div class="profile-field">
+                        <label>Location</label>
+                        <div class="value">Nārnaud, Haryana, IN</div>
+                    </div>
+                    <div class="profile-field">
+                        <label>Account Type</label>
+                        <div class="value">Premium Member</div>
+                    </div>
+                    <div class="profile-field">
+                        <label>Member Since</label>
+                        <div class="value">December 25, 2025</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Free Dashboard -->
+        <section id="free-dashboard" class="dashboard">
+            <button class="back-button" onclick="backToSelection()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                </svg>
+                Back to Plans
+            </button>
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">AgriLens – Free Dashboard</h2>
+                <p class="dashboard-subtitle">Access your essential farming tools and insights</p>
+            </div>
+
+            <div class="features-grid">
+                <!-- Disease Analysis Feature -->
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 1.98-.88 4.55-2.64 6.29-3.51 3.48-9.21 3.48-12.72 0-3.5-3.47-3.53-9.11-.02-12.58 3.51-3.49 9.14-3.49 12.65 0L21 3v7.12zM12.5 8v4.25l3.5 2.08-.72 1.21L11 13V8h1.5z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Disease Analysis Bot</h3>
+                    <p class="feature-description">Upload crop images for instant AI-powered disease detection and treatment recommendations.</p>
+                    <div class="demo-area">
+                        <div class="upload-zone" onclick="alert('Upload functionality would be implemented here')">
+                            <div class="upload-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V8h-3V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"/>
+                                </svg>
+                            </div>
+                            <p style="color: #2C2C2C; font-weight: 600; margin-bottom: 5px;">Click to Upload Crop Image</p>
+                            <small style="color: #666;">Supports JPG, PNG (Max 5MB)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chatbot Advisory Feature -->
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                            <circle cx="9" cy="10" r="1.5"/>
+                            <circle cx="15" cy="10" r="1.5"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Chatbot Advisory</h3>
+                    <p class="feature-description">Get instant answers to your farming questions from our AI agricultural expert available 24/7.</p>
+                    <div class="demo-area">
+                        <div class="chat-container">
+                            <div class="chat-bubble">
+                                <strong>AgriBot:</strong> Hello! How can I assist you with your farming today?
+                            </div>
+                            <div class="chat-bubble">
+                                <strong>You:</strong> What's the best fertilizer for wheat crops?
+                            </div>
+                            <div class="chat-bubble">
+                                <strong>AgriBot:</strong> For wheat, NPK 20:20:20 during early growth stages is recommended. Apply 50kg per acre at sowing and 25kg during tillering stage.
+                            </div>
+                        </div>
+                        <input type="text" class="chat-input" placeholder="Type your farming question here...">
+                    </div>
+                </div>
+
+                <!-- Weather Advisory Feature -->
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Weather Advisory</h3>
+                    <p class="feature-description">Real-time weather updates and 7-day forecasts tailored for your farm location with agricultural insights.</p>
+                    <div class="demo-area">
+                        <div class="weather-grid">
+                            <div class="weather-metric">
+                                <div class="weather-value">28°C</div>
+                                <div class="weather-label">Temperature</div>
+                            </div>
+                            <div class="weather-metric">
+                                <div class="weather-value">65%</div>
+                                <div class="weather-label">Humidity</div>
+                            </div>
+                            <div class="weather-metric">
+                                <div class="weather-value">12km/h</div>
+                                <div class="weather-label">Wind Speed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Locked Premium Features -->
+                <div class="feature-box locked">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">AI Caller Service</h3>
+                    <p class="feature-description">Voice-based AI assistant that speaks in your regional language for hands-free farming guidance.</p>
+                    <p class="lock-text">🔒 Premium Feature - Upgrade to unlock</p>
+                </div>
+
+                <div class="feature-box locked">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Insurance Recommendations</h3>
+                    <p class="feature-description">Get personalized crop insurance recommendations based on your farming profile and risk assessment.</p>
+                    <p class="lock-text">🔒 Premium Feature - Upgrade to unlock</p>
+                </div>
+
+                <div class="feature-box locked">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Document Verification</h3>
+                    <p class="feature-description">AI-powered document verification for land records, permits, and certification with instant validation.</p>
+                    <p class="lock-text">🔒 Premium Feature - Upgrade to unlock</p>
+                </div>
+
+                <div class="feature-box locked">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">AI Crop Recommendations</h3>
+                    <p class="feature-description">Advanced AI analyzes soil, climate, and market trends to recommend the most profitable crops for your land.</p>
+                    <p class="lock-text">🔒 Premium Feature - Upgrade to unlock</p>
+                </div>
+
+                <div class="feature-box locked">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Market & Profit Advisory</h3>
+                    <p class="feature-description">Real-time market prices, demand forecasts, and profit optimization strategies for maximum returns.</p>
+                    <p class="lock-text">🔒 Premium Feature - Upgrade to unlock</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Premium Dashboard -->
+        <section id="premium-dashboard" class="dashboard">
+            <button class="back-button" onclick="backToSelection()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                </svg>
+                Back to Plans
+            </button>
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">AgriLens – Premium Dashboard</h2>
+                <p class="dashboard-subtitle">Access all advanced features and premium tools</p>
+            </div>
+
+            <div class="features-grid">
+                <!-- All premium features unlocked -->
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 1.98-.88 4.55-2.64 6.29-3.51 3.48-9.21 3.48-12.72 0-3.5-3.47-3.53-9.11-.02-12.58 3.51-3.49 9.14-3.49 12.65 0L21 3v7.12zM12.5 8v4.25l3.5 2.08-.72 1.21L11 13V8h1.5z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Disease Analysis Bot</h3>
+                    <p class="feature-description">Upload crop images for instant AI-powered disease detection and treatment recommendations.</p>
+                    <div class="demo-area">
+                        <div class="upload-zone" onclick="alert('Upload functionality would be implemented here')">
+                            <div class="upload-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V8h-3V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"/>
+                                </svg>
+                            </div>
+                            <p style="color: #2C2C2C; font-weight: 600; margin-bottom: 5px;">Click to Upload Crop Image</p>
+                            <small style="color: #666;">Supports JPG, PNG (Max 5MB)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Chatbot Advisory</h3>
+                    <p class="feature-description">Get instant answers to your farming questions from our AI agricultural expert available 24/7.</p>
+                    <div class="demo-area">
+                        <div class="chat-container">
+                            <div class="chat-bubble">
+                                <strong>AgriBot:</strong> Hello Premium User! I'm here to provide advanced farming insights.
+                            </div>
+                            <div class="chat-bubble">
+                                <strong>You:</strong> Analyze market trends for cotton.
+                            </div>
+                            <div class="chat-bubble">
+                                <strong>AgriBot:</strong> Cotton prices are projected to rise 8% next quarter. Current demand is high in textile sector...
+                            </div>
+                        </div>
+                        <input type="text" class="chat-input" placeholder="Ask anything about farming...">
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Weather Advisory</h3>
+                    <p class="feature-description">Real-time weather updates and 7-day forecasts tailored for your farm location.</p>
+                    <div class="demo-area">
+                        <div class="weather-grid">
+                            <div class="weather-metric">
+                                <div class="weather-value">28°C</div>
+                                <div class="weather-label">Temperature</div>
+                            </div>
+                            <div class="weather-metric">
+                                <div class="weather-value">65%</div>
+                                <div class="weather-label">Humidity</div>
+                            </div>
+                            <div class="weather-metric">
+                                <div class="weather-value">12km/h</div>
+                                <div class="weather-label">Wind Speed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">AI Caller Service</h3>
+                    <p class="feature-description">Voice-based AI assistant in regional languages for hands-free farming guidance.</p>
+                    <div class="demo-area">
+                        <div class="language-grid">
+                            <button class="lang-button active">Hindi</button>
+                            <button class="lang-button">Punjabi</button>
+                            <button class="lang-button">Tamil</button>
+                            <button class="lang-button">Telugu</button>
+                            <button class="lang-button">Kannada</button>
+                            <button class="lang-button">Bengali</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Insurance Recommendations</h3>
+                    <p class="feature-description">Get personalized crop insurance recommendations based on your farming profile.</p>
+                    <div class="demo-area">
+                        <ul class="info-list">
+                            <li class="info-item">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Pradhan Mantri Fasal Bima Yojana
+                            </li>
+                            <li class="info-item">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Weather-Based Crop Insurance
+                            </li>
+                            <li class="info-item">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Comprehensive Crop Protection
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Document Verification</h3>
+                    <p class="feature-description">AI-powered document verification for land records and certifications.</p>
+                    <div class="demo-area">
+                        <div class="upload-zone" onclick="alert('Document upload would be implemented here')">
+                            <div class="upload-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                                </svg>
+                            </div>
+                            <p style="color: #2C2C2C; font-weight: 600; margin-bottom: 5px;">Upload Documents</p>
+                            <small style="color: #666;">PDF, JPG, PNG (Max 10MB)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">AI Crop Recommendations</h3>
+                    <p class="feature-description">Advanced AI analyzes soil, climate, and market trends for optimal crop selection.</p>
+                    <div class="demo-area">
+                        <ul class="info-list">
+                            <li class="info-item">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Soil-specific crop matching
+                            </li>
+                            <li class="info-item">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Climate-adaptive suggestions
+                            </li>
+                            <li class="info-item">
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                Market demand analysis
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-name">Market & Profit Advisory</h3>
+                    <p class="feature-description">Real-time market prices, demand forecasts, and profit optimization strategies.</p>
+                    <div class="demo-area">
+                        <div class="weather-grid">
+                            <div class="weather-metric">
+                                <div class="weather-value">₹2,450</div>
+                                <div class="weather-label">Cotton/Quintal</div>
+                            </div>
+                            <div class="weather-metric">
+                                <div class="weather-value">+8%</div>
+                                <div class="weather-label">Weekly Growth</div>
+                            </div>
+                            <div class="weather-metric">
+                                <div class="weather-value">High</div>
+                                <div class="weather-label">Demand Level</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Create cinematic particles
+        function createParticles() {
+            const container = document.querySelector('.intro-particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.width = Math.random() * 6 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 4 + 's';
+                particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // Initialize intro
+        window.addEventListener('DOMContentLoaded', function() {
+            createParticles();
+            
+            // Show sign-in after intro
+            setTimeout(() => {
+                document.getElementById('signin-page').classList.add('active');
+            }, 5000);
+        });
+
+        // Auth functions
+        function showSignIn() {
+            document.getElementById('signup-page').classList.remove('active');
+            document.getElementById('signin-page').classList.add('active');
+        }
+
+        function showSignUp() {
+            document.getElementById('signin-page').classList.remove('active');
+            document.getElementById('signup-page').classList.add('active');
+        }
+
+        function handleSignIn(event) {
+            event.preventDefault();
+            document.getElementById('signin-page').classList.remove('active');
+            document.querySelector('.sidebar').classList.add('active');
+            document.querySelector('.main-content').classList.add('with-sidebar');
+            document.getElementById('landing').style.display = 'flex';
+            scrollToTop();
+        }
+
+        function handleSignUp(event) {
+            event.preventDefault();
+            document.getElementById('signup-page').classList.remove('active');
+            document.querySelector('.sidebar').classList.add('active');
+            document.querySelector('.main-content').classList.add('with-sidebar');
+            document.getElementById('landing').style.display = 'flex';
+            scrollToTop();
+        }
+
+        // Navigation functions
+        function navigateTo(section) {
+            // Hide all sections
+            const sections = ['landing', 'statistics', 'messages', 'profile', 'user-selection', 'free-dashboard', 'premium-dashboard'];
+            sections.forEach(s => {
+                const el = document.getElementById(s);
+                if (el) el.style.display = 'none';
+            });
+
+            // Show selected section
+            const target = document.getElementById(section);
+            if (target) {
+                if (section === 'landing') {
+                    target.style.display = 'flex';
+                } else {
+                    target.style.display = 'block';
+                }
+            }
+
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            scrollToTop();
+        }
+
+        function showUserSelection() {
+            document.getElementById('landing').style.display = 'none';
+            document.getElementById('user-selection').style.display = 'block';
+            scrollToTop();
+        }
+
+        function showDashboard(type) {
+            document.getElementById('user-selection').style.display = 'none';
+            if (type === 'free') {
+                document.getElementById('free-dashboard').style.display = 'block';
+            } else {
+                document.getElementById('premium-dashboard').style.display = 'block';
+            }
+            scrollToTop();
+        }
+
+        function backToSelection() {
+            document.getElementById('free-dashboard').style.display = 'none';
+            document.getElementById('premium-dashboard').style.display = 'none';
+            document.getElementById('user-selection').style.display = 'block';
+            scrollToTop();
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleMenu() {
+            // Future implementation for mobile menu toggle
+            console.log('Menu toggle clicked');
+        }
+
+        // Language button functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const langButtons = document.querySelectorAll('.lang-button');
+                langButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        langButtons.forEach(btn => btn.classList.remove('active'));
+                        this.classList.add('active');
+                    });
+                });
+            }, 1000);
+
+            document.documentElement.style.scrollBehavior = 'smooth';
+        });
+    </script>
+</body>
+</html>
